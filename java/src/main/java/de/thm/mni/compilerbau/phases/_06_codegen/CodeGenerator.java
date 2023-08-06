@@ -32,7 +32,14 @@ public class CodeGenerator {
 
         //TODO (assignment 6): generate eco32 assembler code for the spl program
 
-        throw new NotImplemented();
+        try {
+            program.accept(new LastVisitor(table, output));
+        } catch (LastVisitor.RegisterStackException e) {
+            //output.flush();
+            //output.close();
+            System.out.println("Error: " + e.getMessage());
+            System.exit(1);
+        }
     }
 
     /**

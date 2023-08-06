@@ -1,43 +1,55 @@
 package de.thm.mni.compilerbau.phases._04a_tablebuild;
 
 import de.thm.mni.compilerbau.absyn.*;
-import de.thm.mni.compilerbau.CommandLineOptions;
-import de.thm.mni.compilerbau.absyn.Expression;
 import de.thm.mni.compilerbau.absyn.Program;
-import de.thm.mni.compilerbau.absyn.TypeExpression;
-import de.thm.mni.compilerbau.absyn.Variable;
 import de.thm.mni.compilerbau.absyn.visitor.*;
 import de.thm.mni.compilerbau.table.*;
+import de.thm.mni.compilerbau.types.ArrayType;
 import de.thm.mni.compilerbau.types.Type;
-import de.thm.mni.compilerbau.utils.NotImplemented;
+import de.thm.mni.compilerbau.utils.SplError;
 
 import java.util.ArrayList;
 import java.util.List;
 
 
 public class SymbolTableVisitor extends DoNothingVisitor {
-    private final SymbolTable symbolTable;
+    private SymbolTable symbolTable;
     private Type type;
+    private List<ParameterType> paramList;
 
     public SymbolTableVisitor(SymbolTable symbolTable) {
         this.symbolTable = symbolTable;
     }
 
     public void visit(Program program) {
-        // Visit global declarations
         for (GlobalDeclaration decl : program.declarations) {
             decl.accept(this);
         }
     }
 
     public void visit(TypeDeclaration typeDeclaration) {
-        typeDeclaration.accept(this);
+        typeDeclaration.typeExpression.accept(this);
         TypeEntry entry = new TypeEntry(type);
+
+        Entry testEntry = symbolTable.lookup(typeDeclaration.name);
+        if (testEntry != null) {
+            throw SplError.RedeclarationAsType(typeDeclaration.position, typeDeclaration.name);
+        }
+
         symbolTable.enter(typeDeclaration.name, entry);
     }
 
     public void visit(VariableDeclaration variableDeclaration) {
-        VariableEntry entry = new VariableEntry(variableDeclaration.typeExpression.dataType, false);
+        variableDeclaration.typeExpression.accept(this);
+        VariableEntry entry = new VariableEntry(type, false);
+
+        Entry testEntry = symbolTable.lookup(variableDeclaration.name);
+        if (testEntry != null) {
+            if (testEntry instanceof VariableEntry) {
+                throw SplError.RedeclarationAsVariable(variableDeclaration.position, variableDeclaration.name);
+            }
+        }
+
         symbolTable.enter(variableDeclaration.name, entry);
     }
 
@@ -64,6 +76,7 @@ public class SymbolTableVisitor extends DoNothingVisitor {
     }
      */
 
+    /*
     public void visit(ProcedureDeclaration procedureDeclaration) {
         // Create a new local symbol table for the procedure
         SymbolTable localSymbolTable = new SymbolTable(symbolTable);
@@ -97,9 +110,73 @@ public class SymbolTableVisitor extends DoNothingVisitor {
         // Print the symbol table at the end of the procedure
         TableBuilder.printSymbolTableAtEndOfProcedure(procedureDeclaration.name, entry);
     }
+
+     */
+
+
+    public void visit(ProcedureDeclaration procDec) {
+        SymbolTable parentTable = symbolTable;
+        symbolTable = new SymbolTable(symbolTable);
+        paramList = new ArrayList<>();
+        for (ParameterDeclaration parameter : procDec.parameters) {
+            parameter.accept(this);
+        }
+        for (VariableDeclaration variable : procDec.variables) {
+            variable.accept(this);
+        }
+
+        /*
+        for (ParameterDeclaration parameter : procDec.parameters) {
+            ParameterType paramType = new ParameterType(type, parameter.isReference);
+            paramList.add(paramType);
+        }
+         */
+        ProcedureEntry entry = new ProcedureEntry(symbolTable, paramList);
+        symbolTable = parentTable;
+        paramList = null;
+
+        Entry testEntry = symbolTable.lookup(procDec.name);
+        if (testEntry != null) {
+            throw SplError.RedeclarationAsProcedure(procDec.position, procDec.name);
+        }
+
+        symbolTable.enter(procDec.name, entry);
+
+        TableBuilder.printSymbolTableAtEndOfProcedure(procDec.name, entry);
+    }
+
     public void visit(ParameterDeclaration parameterDeclaration) {
-        VariableEntry entry = new VariableEntry(parameterDeclaration.typeExpression.dataType, parameterDeclaration.isReference);
+        parameterDeclaration.typeExpression.accept(this);
+        paramList.add(new ParameterType(type, parameterDeclaration.isReference));
+        VariableEntry entry = new VariableEntry(type, parameterDeclaration.isReference);
+
+        Entry testEntry = symbolTable.lookup(parameterDeclaration.name);
+        if (testEntry != null) {
+            throw SplError.RedeclarationAsParameter(parameterDeclaration.position, parameterDeclaration.name);
+        }
+
         symbolTable.enter(parameterDeclaration.name, entry);
+
+        if (!parameterDeclaration.isReference && type instanceof ArrayType) {
+            throw SplError.MustBeAReferenceParameter(parameterDeclaration.position, parameterDeclaration.name);
+        }
+    }
+
+    public void visit(NamedTypeExpression namedTypeExpression) {
+        Entry entry = symbolTable.lookup(namedTypeExpression.name);
+        if (entry == null) {
+            throw SplError.UndefinedType(namedTypeExpression.position, namedTypeExpression.name);
+        }
+        if (!(entry instanceof TypeEntry)) {
+            throw SplError.NotAType(namedTypeExpression.position, namedTypeExpression.name);
+        }
+        TypeEntry typeEntry = (TypeEntry)entry;
+        type = typeEntry.type;
+    }
+
+    public void visit(ArrayTypeExpression arrayTy) {
+        arrayTy.baseType.accept(this);
+        type = new ArrayType(type, arrayTy.arraySize);
     }
 
 

@@ -30,10 +30,12 @@ public class VarAllocator {
 
     public void allocVars(Program program, SymbolTable table) {
         //TODO (assignment 5): Allocate stack slots for all parameters and local variables
-
-        throw new NotImplemented();
+        program.accept(new Passage1VarAllocatorVisitor(table));
+        program.accept(new Passage2VarAllocatorVisitor(table));
 
         //TODO: Uncomment this when the above exception is removed!
+        formatVars(program, table);
+        //No idea what showVarAlloc is supposed to be. It's only here???
         //if (showVarAlloc) formatVars(program, table);
     }
 

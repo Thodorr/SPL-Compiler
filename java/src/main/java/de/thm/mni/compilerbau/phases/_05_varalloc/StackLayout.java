@@ -17,26 +17,23 @@ public class StackLayout {
      * @return The total size of the stack frame described by this object.
      */
     public int frameSize() {
-        //TODO (assignment 5): Calculate the size of the stack frame
-
-        throw new NotImplemented();
+        final int frameSize = Math.max(outgoingAreaSize, 0) + (outgoingAreaSize != -1 ? 4 : 0) + 4 + localVarAreaSize;
+        return frameSize;
     }
 
     /**
      * @return The offset (starting from the new stack pointer) where the old frame pointer is stored in this stack frame.
      */
     public int oldFramePointerOffset() {
-        //TODO (assignment 5): Calculate the offset of the old frame pointer
-
-        throw new NotImplemented();
+        final int oldFramePtrOffset = Math.max(outgoingAreaSize, 0) + (outgoingAreaSize != -1 ? 4 : 0);
+        return oldFramePtrOffset;
     }
 
     /**
      * @return The offset (starting from the new frame pointer) where the old return address is stored in this stack frame.
      */
     public int oldReturnAddressOffset() {
-        //TODO (assignment 5): Calculate the offset of the old return address
-
-        throw new NotImplemented();
+        final int oldReturnPtrOffset = -4 - 4 - localVarAreaSize;
+        return oldReturnPtrOffset;
     }
 }
